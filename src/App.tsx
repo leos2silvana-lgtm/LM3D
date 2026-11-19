@@ -1195,7 +1195,9 @@ export default function App() {
               />
             )}
 
-            {activeTab === 'calculadora' && <Calculator3DTab />}
+            {activeTab === 'calculadora' && (
+              <Calculator3DTab produtos={produtos} pdvs={pdvs} />
+            )}
 
             {activeTab === 'dashboard' && (
               <DashboardTab
