@@ -1,0 +1,390 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 1. Global Safety Net (Default-Deny)
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // 2. Hardened Global Primitives
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedEmail() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function notExpired() {
+      return request.time < timestamp.date(2030, 12, 31);
+    }
+
+    function isBootstrappedAdminEmail() {
+      return isVerifiedEmail() && request.auth.token.email in [
+        'sils2leo@gmail.com',
+        'Sils2Leo@gmail.com',
+        'leos2sil@hotmail.com',
+        'leos2sil@homtail.com',
+        'leos2silvana@gmail.com'
+      ];
+    }
+
+    function isAdmin() {
+      return notExpired() && isVerifiedEmail() && (
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
+        isBootstrappedAdminEmail()
+      );
+    }
+
+    function isOwner(userId) {
+      return notExpired() && isVerifiedEmail() && request.auth.uid == userId;
+    }
+
+    function hasMasterUserDoc(userId) {
+      return exists(/databases/$(database)/documents/users/$(userId));
+    }
+
+    function isNumber(val) {
+      return val is int || val is float;
+    }
+
+    // 3. Entity Validation Blueprints
+    function isValidUserProfile(data, userId) {
+      return data.keys().hasAll(['uid', 'email', 'displayName', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['uid', 'email', 'displayName', 'photoURL', 'role', 'createdAt', 'updatedAt'])
+        && isValidId(data.uid)
+        && data.uid == userId
+        && data.uid == request.auth.uid
+        && data.email is string && data.email.size() <= 254
+        && data.displayName is string && data.displayName.size() <= 120
+        && (!('photoURL' in data) || (data.photoURL is string && data.photoURL.size() <= 2048))
+        && (!('role' in data) || (data.role in ['admin', 'user'] && (data.role == 'user' || isAdmin())))
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidPontoDeVenda(data, userId, pdvId) {
+      return data.keys().hasAll([
+          'id', 'ownerId', 'nomeLoja', 'responsavel', 'segmento', 'telefone',
+          'endereco', 'bairroCidade', 'tipoExpositor', 'capacidadeExpositor',
+          'comissaoLojaPorcentagem', 'status', 'frequenciaAcerto',
+          'dataUltimaVisita', 'dataProximaVisita', 'totalPecasNoDisplay',
+          'valorTotalConsignado', 'totalVendidoAcumulado', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'id', 'ownerId', 'codigo', 'nomeLoja', 'responsavel', 'segmento', 'telefone',
+          'endereco', 'bairroCidade', 'linkGoogleMaps', 'tipoExpositor', 'capacidadeExpositor',
+          'displaysAdicionais', 'temPecasAvulsas', 'quantidadePecasAvulsas',
+          'descricaoPecasAvulsas', 'itensPecasAvulsas', 'itensNoDisplay',
+          'comissaoLojaPorcentagem', 'status', 'frequenciaAcerto',
+          'dataUltimaVisita', 'dataProximaVisita', 'totalPecasNoDisplay',
+          'valorTotalConsignado', 'totalVendidoAcumulado', 'chavePixLoja',
+          'observacoes', 'createdAt', 'updatedAt'
+        ])
+        && isValidId(data.id)
+        && data.id == pdvId
+        && isValidId(data.ownerId)
+        && data.ownerId == userId
+        && data.ownerId == request.auth.uid
+        && data.nomeLoja is string && data.nomeLoja.size() >= 1 && data.nomeLoja.size() <= 150
+        && data.responsavel is string && data.responsavel.size() <= 150
+        && data.segmento in [
+          'papelaria', 'chaveiro', 'barbearia', 'banca_conveniencia',
+          'petshop', 'tabacaria_presentes', 'loja_games',
+          'padaria', 'mercado', 'loja_24h', 'outro'
+        ]
+        && data.telefone is string && data.telefone.size() <= 40
+        && data.endereco is string && data.endereco.size() <= 300
+        && data.bairroCidade is string && data.bairroCidade.size() <= 150
+        && data.tipoExpositor in ['balcao_70', 'giratorio_72', 'display_clips', 'sem_display_pecas']
+        && isNumber(data.capacidadeExpositor) && data.capacidadeExpositor >= 0 && data.capacidadeExpositor <= 10000
+        && isNumber(data.comissaoLojaPorcentagem) && data.comissaoLojaPorcentagem >= 0 && data.comissaoLojaPorcentagem <= 100
+        && data.status in ['ativo', 'visita_pendente', 'em_negociacao', 'pausado']
+        && data.frequenciaAcerto in ['semanal', 'quinzenal', 'mensal']
+        && data.dataUltimaVisita is string && data.dataUltimaVisita.size() <= 64
+        && data.dataProximaVisita is string && data.dataProximaVisita.size() <= 64
+        && isNumber(data.totalPecasNoDisplay) && data.totalPecasNoDisplay >= 0 && data.totalPecasNoDisplay <= 100000
+        && isNumber(data.valorTotalConsignado) && data.valorTotalConsignado >= 0 && data.valorTotalConsignado <= 10000000
+        && isNumber(data.totalVendidoAcumulado) && data.totalVendidoAcumulado >= 0 && data.totalVendidoAcumulado <= 10000000
+        && (!('codigo' in data) || (data.codigo is string && data.codigo.size() <= 40))
+        && (!('linkGoogleMaps' in data) || (data.linkGoogleMaps is string && data.linkGoogleMaps.size() <= 500))
+        && (!('displaysAdicionais' in data) || (data.displaysAdicionais is list && data.displaysAdicionais.size() <= 20 && (data.displaysAdicionais.size() == 0 || data.displaysAdicionais[0] is map)))
+        && (!('temPecasAvulsas' in data) || data.temPecasAvulsas is bool)
+        && (!('quantidadePecasAvulsas' in data) || (isNumber(data.quantidadePecasAvulsas) && data.quantidadePecasAvulsas >= 0 && data.quantidadePecasAvulsas <= 100000))
+        && (!('descricaoPecasAvulsas' in data) || (data.descricaoPecasAvulsas is string && data.descricaoPecasAvulsas.size() <= 500))
+        && (!('itensPecasAvulsas' in data) || (data.itensPecasAvulsas is list && data.itensPecasAvulsas.size() <= 100 && (data.itensPecasAvulsas.size() == 0 || data.itensPecasAvulsas[0] is map)))
+        && (!('itensNoDisplay' in data) || (data.itensNoDisplay is list && data.itensNoDisplay.size() <= 200 && (data.itensNoDisplay.size() == 0 || data.itensNoDisplay[0] is map)))
+        && (!('chavePixLoja' in data) || (data.chavePixLoja is string && data.chavePixLoja.size() <= 150))
+        && (!('observacoes' in data) || (data.observacoes is string && data.observacoes.size() <= 1000))
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidProduto3D(data, userId, produtoId) {
+      return data.keys().hasAll([
+          'id', 'ownerId', 'nome', 'categoria', 'descricao',
+          'precoVenda', 'custoProducao', 'pesoGramas', 'tempoImpressaoMin',
+          'estoqueAtelie', 'totalConsignado', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'id', 'ownerId', 'codigo', 'nome', 'categoria', 'descricao',
+          'precoVenda', 'custoProducao', 'pesoGramas', 'tempoImpressaoMin',
+          'estoqueAtelie', 'totalConsignado', 'coresPopulares', 'destaque',
+          'fotoUrl', 'createdAt', 'updatedAt'
+        ])
+        && isValidId(data.id)
+        && data.id == produtoId
+        && isValidId(data.ownerId)
+        && data.ownerId == userId
+        && data.ownerId == request.auth.uid
+        && data.nome is string && data.nome.size() >= 1 && data.nome.size() <= 150
+        && data.categoria in [
+          'chaveiro_articulado', 'chaveiro_automotivo', 'chaveiro_geek',
+          'chaveiro_personalizado', 'chaveiro_pet', 'suporte_3d',
+          'chaveiro_religioso', 'decorativo_miniatura'
+        ]
+        && data.descricao is string && data.descricao.size() <= 1000
+        && isNumber(data.precoVenda) && data.precoVenda >= 0 && data.precoVenda <= 100000
+        && isNumber(data.custoProducao) && data.custoProducao >= 0 && data.custoProducao <= 100000
+        && isNumber(data.pesoGramas) && data.pesoGramas >= 0 && data.pesoGramas <= 50000
+        && isNumber(data.tempoImpressaoMin) && data.tempoImpressaoMin >= 0 && data.tempoImpressaoMin <= 100000
+        && isNumber(data.estoqueAtelie) && data.estoqueAtelie >= 0 && data.estoqueAtelie <= 1000000
+        && isNumber(data.totalConsignado) && data.totalConsignado >= 0 && data.totalConsignado <= 1000000
+        && (!('codigo' in data) || (data.codigo is string && data.codigo.size() <= 40))
+        && (!('coresPopulares' in data) || (data.coresPopulares is list && data.coresPopulares.size() <= 20 && (data.coresPopulares.size() == 0 || data.coresPopulares[0] is string)))
+        && (!('destaque' in data) || data.destaque is bool)
+        && (!('fotoUrl' in data) || (data.fotoUrl is string && data.fotoUrl.size() <= 350000))
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidFechamentoAcerto(data, userId, acertoId) {
+      return data.keys().hasAll([
+          'id', 'ownerId', 'codigoAcerto', 'pdvId', 'pdvNome', 'pdvTelefone',
+          'dataAcerto', 'itens', 'totalPecasVendidas', 'totalPecasRepostas',
+          'valorBrutoVendido', 'comissaoLojaPorcentagem', 'comissaoLojaValor',
+          'valorLiquidoLM3D', 'custoProducaoVendido', 'lucroLiquidoLM3D',
+          'statusPagamento', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'id', 'ownerId', 'codigoAcerto', 'pdvId', 'pdvNome', 'pdvTelefone',
+          'dataAcerto', 'itens', 'totalPecasVendidas', 'totalPecasRepostas',
+          'valorBrutoVendido', 'comissaoLojaPorcentagem', 'comissaoLojaValor',
+          'valorLiquidoLM3D', 'custoProducaoVendido', 'lucroLiquidoLM3D',
+          'statusPagamento', 'observacoes', 'createdAt', 'updatedAt'
+        ])
+        && isValidId(data.id)
+        && data.id == acertoId
+        && isValidId(data.ownerId)
+        && data.ownerId == userId
+        && data.ownerId == request.auth.uid
+        && data.codigoAcerto is string && data.codigoAcerto.size() >= 1 && data.codigoAcerto.size() <= 50
+        && isValidId(data.pdvId)
+        && data.pdvNome is string && data.pdvNome.size() >= 1 && data.pdvNome.size() <= 150
+        && data.pdvTelefone is string && data.pdvTelefone.size() <= 40
+        && data.dataAcerto is string && data.dataAcerto.size() <= 64
+        && data.itens is list && data.itens.size() <= 200 && (data.itens.size() == 0 || data.itens[0] is map)
+        && isNumber(data.totalPecasVendidas) && data.totalPecasVendidas >= 0 && data.totalPecasVendidas <= 100000
+        && isNumber(data.totalPecasRepostas) && data.totalPecasRepostas >= 0 && data.totalPecasRepostas <= 100000
+        && isNumber(data.valorBrutoVendido) && data.valorBrutoVendido >= 0 && data.valorBrutoVendido <= 10000000
+        && isNumber(data.comissaoLojaPorcentagem) && data.comissaoLojaPorcentagem >= 0 && data.comissaoLojaPorcentagem <= 100
+        && isNumber(data.comissaoLojaValor) && data.comissaoLojaValor >= 0 && data.comissaoLojaValor <= 10000000
+        && isNumber(data.valorLiquidoLM3D) && data.valorLiquidoLM3D >= 0 && data.valorLiquidoLM3D <= 10000000
+        && isNumber(data.custoProducaoVendido) && data.custoProducaoVendido >= 0 && data.custoProducaoVendido <= 10000000
+        && isNumber(data.lucroLiquidoLM3D) && data.lucroLiquidoLM3D >= -10000000 && data.lucroLiquidoLM3D <= 10000000
+        && data.statusPagamento in ['pago_pix', 'pago_dinheiro', 'pago_cartao', 'pendente_a_receber']
+        && (!('observacoes' in data) || (data.observacoes is string && data.observacoes.size() <= 1000))
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidRegistroInventario(data, userId, inventarioId) {
+      return data.keys().hasAll([
+          'id', 'ownerId', 'data', 'motivo', 'itensAlterados',
+          'saldoDiferenca', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'id', 'ownerId', 'data', 'motivo', 'itensAlterados',
+          'saldoDiferenca', 'observacoes', 'createdAt', 'updatedAt'
+        ])
+        && isValidId(data.id)
+        && data.id == inventarioId
+        && isValidId(data.ownerId)
+        && data.ownerId == userId
+        && data.ownerId == request.auth.uid
+        && data.data is string && data.data.size() <= 64
+        && data.motivo is string && data.motivo.size() >= 1 && data.motivo.size() <= 150
+        && isNumber(data.itensAlterados) && data.itensAlterados >= 0 && data.itensAlterados <= 10000
+        && isNumber(data.saldoDiferenca) && data.saldoDiferenca >= -1000000 && data.saldoDiferenca <= 1000000
+        && (!('observacoes' in data) || (data.observacoes is string && data.observacoes.size() <= 1000))
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    // 4. Admin Registry (Read-only from client)
+    match /admins/{adminId} {
+      allow get: if isValidId(adminId) && isOwner(adminId);
+      allow list, create, update, delete: if false;
+    }
+
+    // 5. User Profile Collection (PII Isolated to Owner Only)
+    match /users/{userId} {
+      allow get: if isValidId(userId) && isOwner(userId);
+      allow list: if false;
+      allow create: if isValidId(userId)
+        && isOwner(userId)
+        && isValidUserProfile(incoming(), userId)
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isValidId(userId)
+        && isOwner(userId)
+        && isValidUserProfile(incoming(), userId)
+        && incoming().uid == existing().uid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          incoming().diff(existing()).affectedKeys().hasOnly(['email', 'displayName', 'photoURL', 'updatedAt']) ||
+          (isAdmin() && incoming().diff(existing()).affectedKeys().hasOnly(['email', 'displayName', 'photoURL', 'role', 'updatedAt']))
+        );
+      allow delete: if isValidId(userId) && isOwner(userId);
+
+      // 5. Subcollection: PDVs
+      match /pdvs/{pdvId} {
+        allow get: if isValidId(userId) && isValidId(pdvId) && isOwner(userId) && hasMasterUserDoc(userId);
+        allow list: if isOwner(userId) && existing().ownerId == request.auth.uid;
+        allow create: if isValidId(userId)
+          && isValidId(pdvId)
+          && isOwner(userId)
+          && isValidPontoDeVenda(incoming(), userId, pdvId)
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time
+          && hasMasterUserDoc(userId);
+        allow update: if isValidId(userId)
+          && isValidId(pdvId)
+          && isOwner(userId)
+          && isValidPontoDeVenda(incoming(), userId, pdvId)
+          && incoming().id == existing().id
+          && incoming().ownerId == existing().ownerId
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && hasMasterUserDoc(userId)
+          && (
+            // Action: Editar PDV ou Abastecer/Recolher/Atualizar Estoque
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'codigo', 'nomeLoja', 'responsavel', 'segmento', 'telefone',
+              'endereco', 'bairroCidade', 'linkGoogleMaps', 'tipoExpositor', 'capacidadeExpositor',
+              'displaysAdicionais', 'temPecasAvulsas', 'quantidadePecasAvulsas',
+              'descricaoPecasAvulsas', 'itensPecasAvulsas', 'itensNoDisplay',
+              'comissaoLojaPorcentagem', 'status', 'frequenciaAcerto',
+              'dataUltimaVisita', 'dataProximaVisita', 'totalPecasNoDisplay',
+              'valorTotalConsignado', 'totalVendidoAcumulado', 'chavePixLoja',
+              'observacoes', 'updatedAt'
+            ])
+          );
+        allow delete: if isValidId(userId) && isValidId(pdvId) && isOwner(userId) && hasMasterUserDoc(userId);
+      }
+
+      // 6. Subcollection: Produtos 3D
+      match /produtos/{produtoId} {
+        allow get: if isValidId(userId) && isValidId(produtoId) && isOwner(userId) && hasMasterUserDoc(userId);
+        allow list: if isOwner(userId) && existing().ownerId == request.auth.uid;
+        allow create: if isValidId(userId)
+          && isValidId(produtoId)
+          && isOwner(userId)
+          && isValidProduto3D(incoming(), userId, produtoId)
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time
+          && hasMasterUserDoc(userId);
+        allow update: if isValidId(userId)
+          && isValidId(produtoId)
+          && isOwner(userId)
+          && isValidProduto3D(incoming(), userId, produtoId)
+          && incoming().id == existing().id
+          && incoming().ownerId == existing().ownerId
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && hasMasterUserDoc(userId)
+          && (
+            // Action: Ajuste de estoque / consignado / edição de produto
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'codigo', 'nome', 'categoria', 'descricao', 'precoVenda',
+              'custoProducao', 'pesoGramas', 'tempoImpressaoMin',
+              'estoqueAtelie', 'totalConsignado', 'coresPopulares',
+              'destaque', 'fotoUrl', 'updatedAt'
+            ])
+          );
+        allow delete: if isValidId(userId) && isValidId(produtoId) && isOwner(userId) && hasMasterUserDoc(userId);
+      }
+
+      // 7. Subcollection: Acertos e Fechamentos
+      match /acertos/{acertoId} {
+        allow get: if isValidId(userId) && isValidId(acertoId) && isOwner(userId) && hasMasterUserDoc(userId);
+        allow list: if isOwner(userId) && existing().ownerId == request.auth.uid;
+        allow create: if isValidId(userId)
+          && isValidId(acertoId)
+          && isOwner(userId)
+          && isValidFechamentoAcerto(incoming(), userId, acertoId)
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time
+          && hasMasterUserDoc(userId);
+        allow update: if isValidId(userId)
+          && isValidId(acertoId)
+          && isOwner(userId)
+          && isValidFechamentoAcerto(incoming(), userId, acertoId)
+          && incoming().id == existing().id
+          && incoming().ownerId == existing().ownerId
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && hasMasterUserDoc(userId)
+          && (
+            // Action: Atualizar status de pagamento ou observação do acerto
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'statusPagamento', 'observacoes', 'updatedAt'
+            ])
+          );
+        allow delete: if isValidId(userId) && isValidId(acertoId) && isOwner(userId) && hasMasterUserDoc(userId);
+      }
+
+      // 8. Subcollection: Inventários
+      match /inventarios/{inventarioId} {
+        allow get: if isValidId(userId) && isValidId(inventarioId) && isOwner(userId) && hasMasterUserDoc(userId);
+        allow list: if isOwner(userId) && existing().ownerId == request.auth.uid;
+        allow create: if isValidId(userId)
+          && isValidId(inventarioId)
+          && isOwner(userId)
+          && isValidRegistroInventario(incoming(), userId, inventarioId)
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time
+          && hasMasterUserDoc(userId);
+        allow update: if isValidId(userId)
+          && isValidId(inventarioId)
+          && isOwner(userId)
+          && isValidRegistroInventario(incoming(), userId, inventarioId)
+          && incoming().id == existing().id
+          && incoming().ownerId == existing().ownerId
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && hasMasterUserDoc(userId)
+          && (
+            // Action: Atualizar observações do inventário
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'observacoes', 'updatedAt'
+            ])
+          );
+        allow delete: if isValidId(userId) && isValidId(inventarioId) && isOwner(userId) && hasMasterUserDoc(userId);
+      }
+    }
+  }
+}

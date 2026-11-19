@@ -1,0 +1,6 @@
+{
+  "name": "LM3D Consignados",
+  "description": "Sistema de gestão de consignação de chaveiros e produtos impressos em 3D para pontos de venda parceiros.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

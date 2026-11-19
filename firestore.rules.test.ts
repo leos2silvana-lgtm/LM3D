@@ -1,0 +1,103 @@
+/**
+ * Payload-First Security Test Specification (Dirty Dozen)
+ * Documents expected PERMISSION_DENIED payloads for the LM3D Firestore Ruleset.
+ */
+
+export const DIRTY_DOZEN_PAYLOADS = [
+  {
+    name: '01_unauthenticated_write',
+    auth: null,
+    path: '/users/user_1/pdvs/pdv-1',
+    operation: 'create',
+    payload: { id: 'pdv-1', ownerId: 'user_1', nomeLoja: 'Loja Teste' },
+    expected: 'PERMISSION_DENIED',
+  },
+  {
+    name: '02_unverified_email_spoof',
+    auth: { uid: 'user_1', token: { email: 'user@example.com', email_verified: false } },
+    path: '/users/user_1',
+    operation: 'create',
+    payload: { uid: 'user_1', email: 'user@example.com', displayName: 'User' },
+    expected: 'PERMISSION_DENIED',
+  },
+  {
+    name: '03_cross_tenant_read',
+    auth: { uid: 'attacker_2', token: { email_verified: true } },
+    path: '/users/user_1/pdvs/pdv-1',
+    operation: 'get',
+    payload: null,
+    expected: 'PERMISSION_DENIED',
+  },
+  {
+    name: '04_owner_id_spoofing',
+    auth: { uid: 'user_1', token: { email_verified: true } },
+    path: '/users/user_1/produtos/prod-1',
+    operation: 'create',
+    payload: { id: 'prod-1', ownerId: 'user_2', nome: 'Chaveiro' },
+    expected: 'PERMISSION_DENIED',
+  },
+  {
+    name: '05_shadow_ghost_field_injection',
+    auth: { uid: 'user_1', token: { email_verified: true } },
+    path: '/users/user_1',
+    operation: 'create',
+    payload: { uid: 'user_1', email: 'u@test.com', displayName: 'User', isAdmin: true },
+    expected: 'PERMISSION_DENIED',
+  },
+  {
+    name: '06_poisoned_document_id',
+    auth: { uid: 'user_1', token: { email_verified: true } },
+    path: '/users/user_1/pdvs/bad$id!',
+    operation: 'create',
+    payload: { id: 'bad$id!', ownerId: 'user_1', nomeLoja: 'Loja' },
+    expected: 'PERMISSION_DENIED',
+  },
+  {
+    name: '07_document_id_mismatch',
+    auth: { uid: 'user_1', token: { email_verified: true } },
+    path: '/users/user_1/pdvs/pdv-1',
+    operation: 'create',
+    payload: { id: 'pdv-999', ownerId: 'user_1', nomeLoja: 'Loja' },
+    expected: 'PERMISSION_DENIED',
+  },
+  {
+    name: '08_forged_client_timestamp',
+    auth: { uid: 'user_1', token: { email_verified: true } },
+    path: '/users/user_1/produtos/prod-1',
+    operation: 'create',
+    payload: { id: 'prod-1', ownerId: 'user_1', nome: 'Chaveiro', createdAt: new Date(0), updatedAt: new Date(0) },
+    expected: 'PERMISSION_DENIED',
+  },
+  {
+    name: '09_immutable_created_at_mutation',
+    auth: { uid: 'user_1', token: { email_verified: true } },
+    path: '/users/user_1/produtos/prod-1',
+    operation: 'update',
+    payload: { createdAt: 'request.time', nome: 'Novo Nome' },
+    expected: 'PERMISSION_DENIED',
+  },
+  {
+    name: '10_value_type_poisoning',
+    auth: { uid: 'user_1', token: { email_verified: true } },
+    path: '/users/user_1/produtos/prod-1',
+    operation: 'update',
+    payload: { estoqueAtelie: -10, nome: 12345 },
+    expected: 'PERMISSION_DENIED',
+  },
+  {
+    name: '11_unbounded_array_overflow',
+    auth: { uid: 'user_1', token: { email_verified: true } },
+    path: '/users/user_1/produtos/prod-1',
+    operation: 'create',
+    payload: { id: 'prod-1', ownerId: 'user_1', coresPopulares: new Array(25).fill('Azul') },
+    expected: 'PERMISSION_DENIED',
+  },
+  {
+    name: '12_root_users_list_pii_leak',
+    auth: { uid: 'user_1', token: { email_verified: true } },
+    path: '/users',
+    operation: 'list',
+    payload: null,
+    expected: 'PERMISSION_DENIED',
+  },
+];

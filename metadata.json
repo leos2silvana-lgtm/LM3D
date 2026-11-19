@@ -1,0 +1,6 @@
+{
+  "name": "LM3D CONSIGNADOS",
+  "description": "Sistema de gestão de consignados LM3D (@leomaker3d) para produtos variados, controle de estoque, pontos de venda parceiros e fechamento de acertos em campo.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

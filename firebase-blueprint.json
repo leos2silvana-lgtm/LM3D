@@ -1,0 +1,497 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Perfil autenticado do administrador proprietário dos dados de consignação LM3D.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "UID do usuário no Firebase Auth."
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "maxLength": 254,
+          "description": "E-mail verificado da conta Google."
+        },
+        "displayName": {
+          "type": "string",
+          "maxLength": 120,
+          "description": "Nome exibido do usuário."
+        },
+        "photoURL": {
+          "type": "string",
+          "maxLength": 2048,
+          "description": "URL da foto de perfil."
+        },
+        "role": {
+          "type": "string",
+          "enum": ["admin", "user"],
+          "description": "Papel de acesso do usuário no sistema."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Data de criação do perfil no servidor."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Data da última atualização do perfil no servidor."
+        }
+      },
+      "required": ["uid", "email", "displayName", "createdAt", "updatedAt"]
+    },
+    "PontoDeVenda": {
+      "title": "PontoDeVenda",
+      "description": "Loja parceira (PDV) com expositores e chaveiros 3D consignados.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "ownerId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "codigo": {
+          "type": "string",
+          "maxLength": 40
+        },
+        "nomeLoja": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 150
+        },
+        "responsavel": {
+          "type": "string",
+          "maxLength": 150
+        },
+        "segmento": {
+          "type": "string",
+          "enum": [
+            "papelaria",
+            "chaveiro",
+            "barbearia",
+            "banca_conveniencia",
+            "petshop",
+            "tabacaria_presentes",
+            "loja_games",
+            "padaria",
+            "mercado",
+            "loja_24h",
+            "outro"
+          ]
+        },
+        "telefone": {
+          "type": "string",
+          "maxLength": 40
+        },
+        "endereco": {
+          "type": "string",
+          "maxLength": 300
+        },
+        "bairroCidade": {
+          "type": "string",
+          "maxLength": 150
+        },
+        "linkGoogleMaps": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "tipoExpositor": {
+          "type": "string",
+          "enum": ["balcao_70", "giratorio_72", "display_clips", "sem_display_pecas"]
+        },
+        "capacidadeExpositor": {
+          "type": "number"
+        },
+        "displaysAdicionais": {
+          "type": "array"
+        },
+        "temPecasAvulsas": {
+          "type": "boolean"
+        },
+        "quantidadePecasAvulsas": {
+          "type": "number"
+        },
+        "descricaoPecasAvulsas": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "itensPecasAvulsas": {
+          "type": "array"
+        },
+        "itensNoDisplay": {
+          "type": "array"
+        },
+        "comissaoLojaPorcentagem": {
+          "type": "number"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["ativo", "visita_pendente", "em_negociacao", "pausado"]
+        },
+        "frequenciaAcerto": {
+          "type": "string",
+          "enum": ["semanal", "quinzenal", "mensal"]
+        },
+        "dataUltimaVisita": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "dataProximaVisita": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "totalPecasNoDisplay": {
+          "type": "number"
+        },
+        "valorTotalConsignado": {
+          "type": "number"
+        },
+        "totalVendidoAcumulado": {
+          "type": "number"
+        },
+        "chavePixLoja": {
+          "type": "string",
+          "maxLength": 150
+        },
+        "observacoes": {
+          "type": "string",
+          "maxLength": 1000
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "ownerId",
+        "nomeLoja",
+        "responsavel",
+        "segmento",
+        "telefone",
+        "endereco",
+        "bairroCidade",
+        "tipoExpositor",
+        "capacidadeExpositor",
+        "comissaoLojaPorcentagem",
+        "status",
+        "frequenciaAcerto",
+        "dataUltimaVisita",
+        "dataProximaVisita",
+        "totalPecasNoDisplay",
+        "valorTotalConsignado",
+        "totalVendidoAcumulado",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "Produto3D": {
+      "title": "Produto3D",
+      "description": "Produto/chaveiro 3D do catálogo e estoque do ateliê.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "ownerId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "codigo": {
+          "type": "string",
+          "maxLength": 40
+        },
+        "nome": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 150
+        },
+        "categoria": {
+          "type": "string",
+          "enum": [
+            "chaveiro_articulado",
+            "chaveiro_automotivo",
+            "chaveiro_geek",
+            "chaveiro_personalizado",
+            "chaveiro_pet",
+            "suporte_3d",
+            "chaveiro_religioso",
+            "decorativo_miniatura"
+          ]
+        },
+        "descricao": {
+          "type": "string",
+          "maxLength": 1000
+        },
+        "precoVenda": {
+          "type": "number"
+        },
+        "custoProducao": {
+          "type": "number"
+        },
+        "pesoGramas": {
+          "type": "number"
+        },
+        "tempoImpressaoMin": {
+          "type": "number"
+        },
+        "estoqueAtelie": {
+          "type": "number"
+        },
+        "totalConsignado": {
+          "type": "number"
+        },
+        "coresPopulares": {
+          "type": "array"
+        },
+        "destaque": {
+          "type": "boolean"
+        },
+        "fotoUrl": {
+          "type": "string",
+          "maxLength": 350000
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "ownerId",
+        "nome",
+        "categoria",
+        "descricao",
+        "precoVenda",
+        "custoProducao",
+        "pesoGramas",
+        "tempoImpressaoMin",
+        "estoqueAtelie",
+        "totalConsignado",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "FechamentoAcerto": {
+      "title": "FechamentoAcerto",
+      "description": "Registro de conferência de acerto e prestação de contas com um PDV.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "ownerId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "codigoAcerto": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 50
+        },
+        "pdvId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "pdvNome": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 150
+        },
+        "pdvTelefone": {
+          "type": "string",
+          "maxLength": 40
+        },
+        "dataAcerto": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "itens": {
+          "type": "array"
+        },
+        "totalPecasVendidas": {
+          "type": "number"
+        },
+        "totalPecasRepostas": {
+          "type": "number"
+        },
+        "valorBrutoVendido": {
+          "type": "number"
+        },
+        "comissaoLojaPorcentagem": {
+          "type": "number"
+        },
+        "comissaoLojaValor": {
+          "type": "number"
+        },
+        "valorLiquidoLM3D": {
+          "type": "number"
+        },
+        "custoProducaoVendido": {
+          "type": "number"
+        },
+        "lucroLiquidoLM3D": {
+          "type": "number"
+        },
+        "statusPagamento": {
+          "type": "string",
+          "enum": ["pago_pix", "pago_dinheiro", "pago_cartao", "pendente_a_receber"]
+        },
+        "observacoes": {
+          "type": "string",
+          "maxLength": 1000
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "ownerId",
+        "codigoAcerto",
+        "pdvId",
+        "pdvNome",
+        "pdvTelefone",
+        "dataAcerto",
+        "itens",
+        "totalPecasVendidas",
+        "totalPecasRepostas",
+        "valorBrutoVendido",
+        "comissaoLojaPorcentagem",
+        "comissaoLojaValor",
+        "valorLiquidoLM3D",
+        "custoProducaoVendido",
+        "lucroLiquidoLM3D",
+        "statusPagamento",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "RegistroInventario": {
+      "title": "RegistroInventario",
+      "description": "Histórico de balanços e ajustes de inventário no ateliê.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "ownerId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "data": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "motivo": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 150
+        },
+        "itensAlterados": {
+          "type": "number"
+        },
+        "saldoDiferenca": {
+          "type": "number"
+        },
+        "observacoes": {
+          "type": "string",
+          "maxLength": 1000
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "ownerId",
+        "data",
+        "motivo",
+        "itensAlterados",
+        "saldoDiferenca",
+        "createdAt",
+        "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": {
+        "$ref": "#/entities/UserProfile"
+      },
+      "description": "Documento raiz do usuário autenticado (contém PII isolado ao proprietário)."
+    },
+    "/users/{userId}/pdvs/{pdvId}": {
+      "schema": {
+        "$ref": "#/entities/PontoDeVenda"
+      },
+      "description": "Pontos de venda consignados pertencentes ao usuário."
+    },
+    "/users/{userId}/produtos/{produtoId}": {
+      "schema": {
+        "$ref": "#/entities/Produto3D"
+      },
+      "description": "Catálogo e estoque de produtos 3D pertencentes ao usuário."
+    },
+    "/users/{userId}/acertos/{acertoId}": {
+      "schema": {
+        "$ref": "#/entities/FechamentoAcerto"
+      },
+      "description": "Fechamentos de acerto de consignação pertencentes ao usuário."
+    },
+    "/users/{userId}/inventarios/{inventarioId}": {
+      "schema": {
+        "$ref": "#/entities/RegistroInventario"
+      },
+      "description": "Registros de balanço e inventário pertencentes ao usuário."
+    }
+  }
+}
