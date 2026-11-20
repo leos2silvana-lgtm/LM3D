@@ -15,9 +15,11 @@ import {
   RotateCcw,
   ArrowDownLeft,
   ArrowUpRight,
-  Info
+  Info,
+  Bluetooth
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import { PaperWidth } from '../services/bluetoothPrinter';
 
 interface RestockPDVModalProps {
   isOpen: boolean;
@@ -30,7 +32,8 @@ interface RestockPDVModalProps {
     pdvId: string, 
     itens: { produtoId: string; quantidade: number }[],
     observacao?: string,
-    tipoOperacao?: 'abastecer' | 'recolher'
+    tipoOperacao?: 'abastecer' | 'recolher',
+    printOptions?: { abrirImpressao?: boolean; larguraPapel?: PaperWidth }
   ) => void;
 }
 
@@ -56,6 +59,8 @@ export function RestockPDVModal({
   const [quantidades, setQuantidades] = useState<Record<string, number>>({});
   const [erroValidacao, setErroValidacao] = useState<string | null>(null);
   const [confirmarPendencia, setConfirmarPendencia] = useState(false);
+  const [abrirImpressao, setAbrirImpressao] = useState<boolean>(initialMode !== 'recolher');
+  const [larguraPapel, setLarguraPapel] = useState<PaperWidth>('58mm');
 
   // Reset or update state when opening
   React.useEffect(() => {
@@ -65,12 +70,14 @@ export function RestockPDVModal({
       } else if (pdvs.length > 0 && (!selectedPdvId || !pdvs.some(p => p.id === selectedPdvId))) {
         setSelectedPdvId(pdvs[0].id);
       }
-      setTipoOperacao(initialMode || 'abastecer');
+      const mode = initialMode || 'abastecer';
+      setTipoOperacao(mode);
       setQuantidades({});
       setObservacao('');
       setBusca('');
       setErroValidacao(null);
       setConfirmarPendencia(false);
+      setAbrirImpressao(mode === 'abastecer');
     }
   }, [isOpen, initialMode, initialPdvId, pdvs]);
 
@@ -221,7 +228,10 @@ export function RestockPDVModal({
       // ignore
     }
 
-    onConfirmRestock(pdv.id, payload, observacao, tipoOperacao);
+    onConfirmRestock(pdv.id, payload, observacao, tipoOperacao, {
+      abrirImpressao,
+      larguraPapel,
+    });
     onClose();
     setQuantidades({});
     setConfirmarPendencia(false);
@@ -763,6 +773,54 @@ export function RestockPDVModal({
                 {pecasAposMovimento} {isRecolher ? 'peças' : `de ${capacidadeDisplay} peças suportadas`}
               </strong>
             </div>
+          </div>
+
+          {/* Opção de Impressão Bluetooth / Papel do Relatório de Estoque na Loja */}
+          <div className="bg-blue-50/70 border border-blue-200 rounded-2xl p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <label className="flex items-start gap-2.5 cursor-pointer flex-1">
+              <input
+                type="checkbox"
+                checked={abrirImpressao}
+                onChange={(e) => setAbrirImpressao(e.target.checked)}
+                className="mt-0.5 w-4 h-4 accent-blue-600 rounded shrink-0"
+              />
+              <div className="space-y-0.5">
+                <span className="text-xs font-extrabold text-slate-900 flex items-center gap-1.5">
+                  <Bluetooth className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                  <span>Imprimir papel do relatório do estoque na loja (Bluetooth)</span>
+                </span>
+                <span className="text-[11px] text-slate-600 block">
+                  Gera o comprovante com os itens abastecidos e a lista completa atualizada do expositor para imprimir via Bluetooth ou PDF.
+                </span>
+              </div>
+            </label>
+
+            {abrirImpressao && (
+              <div className="flex items-center gap-1 p-1 bg-white border border-blue-200 rounded-xl shrink-0 self-end sm:self-center">
+                <button
+                  type="button"
+                  onClick={() => setLarguraPapel('58mm')}
+                  className={`px-2.5 py-1 text-[11px] font-bold rounded-lg transition-colors cursor-pointer ${
+                    larguraPapel === '58mm'
+                      ? 'bg-blue-600 text-white'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  58mm
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLarguraPapel('80mm')}
+                  className={`px-2.5 py-1 text-[11px] font-bold rounded-lg transition-colors cursor-pointer ${
+                    larguraPapel === '80mm'
+                      ? 'bg-blue-600 text-white'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  80mm
+                </button>
+              </div>
+            )}
           </div>
 
           {erroValidacao && (

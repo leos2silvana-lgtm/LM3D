@@ -1,1 +1,30 @@
 @import "tailwindcss";
+
+#thermal-print-portal {
+  display: none;
+}
+
+@media print {
+  @page {
+    margin: 3mm;
+  }
+
+  body.printing-thermal-receipt #root {
+    display: none !important;
+  }
+
+  body.printing-thermal-receipt #thermal-print-portal {
+    display: block !important;
+    position: static !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+  }
+
+  body.printing-thermal-receipt #thermal-print-portal .thermal-paper-sheet {
+    box-shadow: none !important;
+    border: none !important;
+    margin: 0 auto !important;
+  }
+}

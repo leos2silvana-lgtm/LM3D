@@ -35,7 +35,8 @@ import {
   Trash2,
   Package,
   RotateCcw,
-  Navigation
+  Navigation,
+  Printer
 } from 'lucide-react';
 
 interface PDVsTabProps {
@@ -46,6 +47,7 @@ interface PDVsTabProps {
   onOpenAbastecerPDV?: (pdvId: string, initialMode?: 'abastecer' | 'recolher') => void;
   onEditarPDV?: (pdv: PontoDeVenda) => void;
   onExcluirPDV?: (pdvId: string) => void;
+  onImprimirEstoquePDV?: (pdv: PontoDeVenda) => void;
 }
 
 export const PDVsTab: React.FC<PDVsTabProps> = ({
@@ -56,6 +58,7 @@ export const PDVsTab: React.FC<PDVsTabProps> = ({
   onOpenAbastecerPDV,
   onEditarPDV,
   onExcluirPDV,
+  onImprimirEstoquePDV,
 }) => {
   const [busca, setBusca] = useState('');
   const [filtroStatus, setFiltroStatus] = useState<string>('todos');
@@ -595,6 +598,17 @@ export const PDVsTab: React.FC<PDVsTabProps> = ({
                       <Receipt className="w-4 h-4 shrink-0" />
                       Fazer Acerto / Fechamento
                     </button>
+                    {onImprimirEstoquePDV && (
+                      <button
+                        type="button"
+                        onClick={() => onImprimirEstoquePDV(pdv)}
+                        className="min-h-[42px] min-w-[42px] px-2.5 py-2 bg-blue-50 hover:bg-blue-100 active:scale-95 text-blue-700 font-bold text-xs rounded-xl border border-blue-200 flex items-center justify-center transition-colors shrink-0"
+                        title="Imprimir Relatório do Estoque na Loja (Bluetooth / Papel)"
+                        aria-label="Imprimir estoque da loja"
+                      >
+                        <Printer className="w-4 h-4 text-blue-600" />
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={() => handleWhatsAppChat(pdv)}

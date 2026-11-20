@@ -48,6 +48,12 @@ import { NewProductModal } from './components/NewProductModal';
 import { RestockPDVModal } from './components/RestockPDVModal';
 import { QuickAdjustStockModal } from './components/QuickAdjustStockModal';
 import { InventoryModal } from './components/InventoryModal';
+import { BluetoothReceiptModal } from './components/BluetoothReceiptModal';
+import {
+  ItemImpressaoEstoque,
+  PaperWidth,
+  RelatorioEstoqueLojaPrintData,
+} from './services/bluetoothPrinter';
 import { LoginScreen } from './components/LoginScreen';
 import { MobileBottomNav } from './components/MobileBottomNav';
 import {
@@ -59,6 +65,7 @@ import {
   RefreshCw,
   LogOut,
   AlertCircle,
+  Printer,
 } from 'lucide-react';
 import {
   generateWhatsAppReceipt,
@@ -139,19 +146,26 @@ export default function App() {
   const [editingProduct, setEditingProduct] = useState<Produto3D | null>(null);
   const [isInventoryModalOpen, setIsInventoryModalOpen] = useState(false);
   const [adjustingProduct, setAdjustingProduct] = useState<Produto3D | null>(null);
+  const [receiptToPrint, setReceiptToPrint] =
+    useState<RelatorioEstoqueLojaPrintData | null>(null);
+  const [receiptPaperWidth, setReceiptPaperWidth] = useState<PaperWidth>('58mm');
   const [toastMessage, setToastMessage] = useState<{
     text: string;
     whatsappAction?: () => void;
+    printAction?: () => void;
   } | null>(null);
 
   if (fatalError) {
     throw fatalError;
   }
 
-  const showToast = useCallback((text: string, whatsappAction?: () => void) => {
-    setToastMessage({ text, whatsappAction });
-    setTimeout(() => setToastMessage(null), 5000);
-  }, []);
+  const showToast = useCallback(
+    (text: string, whatsappAction?: () => void, printAction?: () => void) => {
+      setToastMessage({ text, whatsappAction, printAction });
+      setTimeout(() => setToastMessage(null), 6000);
+    },
+    []
+  );
 
   const captureFirestoreError = useCallback(
     (error: unknown, operationType: OperationType, path: string | null) => {
@@ -301,12 +315,49 @@ export default function App() {
     setIsRestockModalOpen(true);
   };
 
+  // Build printable stock report items from ItemEstoquePDV list
+  const mapItensParaImpressao = useCallback(
+    (lista: { produtoId: string; quantidade: number }[]): ItemImpressaoEstoque[] => {
+      return lista
+        .filter((it) => it.quantidade > 0)
+        .map((it) => {
+          const prod = produtos.find((p) => p.id === it.produtoId);
+          return {
+            produtoId: it.produtoId,
+            produtoNome: prod?.nome || 'Produto 3D',
+            codigo: prod?.codigo,
+            quantidade: it.quantidade,
+            precoUnitario: prod?.precoVenda || 13.0,
+          };
+        });
+    },
+    [produtos]
+  );
+
+  // Open current PDV stock report directly
+  const handleOpenPdvStockReport = (pdv: PontoDeVenda) => {
+    const estoqueCompleto = mapItensParaImpressao(pdv.itensNoDisplay || []);
+    setReceiptPaperWidth('58mm');
+    setReceiptToPrint({
+      pdv,
+      tipoOperacao: 'relatorio_atual',
+      dataHora: new Date().toISOString(),
+      itensMovimento: [],
+      estoqueCompletoLoja: estoqueCompleto,
+      totalMovimentoPecas: 0,
+      valorMovimento: 0,
+      novoTotalLojaPecas: pdv.totalPecasNoDisplay,
+      novoValorConsignadoLoja: pdv.valorTotalConsignado,
+    });
+  };
+
   // Confirm Restock or Return of PDV pieces (Atomic Batch in Firestore)
   const handleConfirmRestock = async (
     pdvId: string,
     itens: { produtoId: string; quantidade: number }[],
     observacao?: string,
-    tipoOperacao: 'abastecer' | 'recolher' = 'abastecer'
+    tipoOperacao: 'abastecer' | 'recolher' = 'abastecer',
+    printOptions?: { abrirImpressao?: boolean; larguraPapel?: PaperWidth }
   ) => {
     if (!firebaseUser) return;
     const uid = firebaseUser.uid;
@@ -377,12 +428,34 @@ export default function App() {
         return;
       }
 
+      const printData: RelatorioEstoqueLojaPrintData = {
+        pdv: updatedPdv,
+        tipoOperacao: 'recolher',
+        dataHora: new Date().toISOString(),
+        itensMovimento: mapItensParaImpressao(itens),
+        estoqueCompletoLoja: mapItensParaImpressao(novosItens),
+        totalMovimentoPecas: totalPecas,
+        valorMovimento,
+        novoTotalLojaPecas: novoTotal,
+        novoValorConsignadoLoja: novoValor,
+        observacao,
+      };
+
+      const openPrintModal = () => {
+        setReceiptPaperWidth(printOptions?.larguraPapel || '58mm');
+        setReceiptToPrint(printData);
+      };
+
+      if (printOptions?.abrirImpressao) {
+        openPrintModal();
+      }
+
       const cleanPhone = targetPdv.telefone.replace(/\D/g, '');
       const sendWhatsApp = () => {
         const itensFormatados = itens.map((i) => {
           const prod = produtos.find((p) => p.id === i.produtoId);
           return {
-            produtoNome: prod?.nome || 'Chaveiro 3D',
+            produtoNome: prod?.nome || 'Produto 3D',
             quantidade: i.quantidade,
             precoUnitario: prod?.precoVenda || 13.0,
           };
@@ -398,7 +471,8 @@ export default function App() {
 
       showToast(
         `Recolhimento concluído: +${totalPecas} peças retornaram ao estoque do Ateliê!`,
-        sendWhatsApp
+        sendWhatsApp,
+        openPrintModal
       );
       return;
     }
@@ -456,12 +530,34 @@ export default function App() {
       return;
     }
 
+    const printData: RelatorioEstoqueLojaPrintData = {
+      pdv: updatedPdv,
+      tipoOperacao: 'abastecer',
+      dataHora: new Date().toISOString(),
+      itensMovimento: mapItensParaImpressao(itens),
+      estoqueCompletoLoja: mapItensParaImpressao(novosItens),
+      totalMovimentoPecas: totalPecas,
+      valorMovimento,
+      novoTotalLojaPecas: novoTotal,
+      novoValorConsignadoLoja: novoValor,
+      observacao,
+    };
+
+    const openPrintModal = () => {
+      setReceiptPaperWidth(printOptions?.larguraPapel || '58mm');
+      setReceiptToPrint(printData);
+    };
+
+    if (printOptions?.abrirImpressao) {
+      openPrintModal();
+    }
+
     const cleanPhone = targetPdv.telefone.replace(/\D/g, '');
     const sendWhatsApp = () => {
       const itensFormatados = itens.map((i) => {
         const prod = produtos.find((p) => p.id === i.produtoId);
         return {
-          produtoNome: prod?.nome || 'Chaveiro 3D',
+          produtoNome: prod?.nome || 'Produto 3D',
           quantidade: i.quantidade,
           precoUnitario: prod?.precoVenda || 13.0,
         };
@@ -472,7 +568,8 @@ export default function App() {
 
     showToast(
       `Expositor da loja "${targetPdv.nomeLoja}" abastecido (+${totalPecas} peças)!`,
-      sendWhatsApp
+      sendWhatsApp,
+      openPrintModal
     );
   };
 
@@ -1115,14 +1212,24 @@ export default function App() {
     <div className="min-h-screen bg-slate-50 flex flex-col selection:bg-emerald-500 selection:text-white font-['Plus_Jakarta_Sans',sans-serif]">
       {/* Toast Notification */}
       {toastMessage && (
-        <div className="fixed bottom-20 sm:bottom-6 right-3 sm:right-6 left-3 sm:left-auto z-50 bg-slate-900 text-white text-xs font-semibold px-4 py-3 rounded-2xl shadow-xl flex items-center gap-3 border border-slate-700 animate-in fade-in slide-in-from-bottom-2 max-w-md">
+        <div className="fixed bottom-20 sm:bottom-6 right-3 sm:right-6 left-3 sm:left-auto z-50 bg-slate-900 text-white text-xs font-semibold px-4 py-3 rounded-2xl shadow-xl flex flex-wrap items-center gap-2.5 border border-slate-700 animate-in fade-in slide-in-from-bottom-2 max-w-lg">
           <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-          <span className="flex-1">{toastMessage.text}</span>
+          <span className="flex-1 min-w-[160px]">{toastMessage.text}</span>
+          {toastMessage.printAction && (
+            <button
+              type="button"
+              onClick={toastMessage.printAction}
+              className="px-2.5 py-1 bg-blue-600 hover:bg-blue-500 text-white text-[11px] font-black rounded-lg flex items-center gap-1 transition-all shrink-0 cursor-pointer"
+            >
+              <Printer className="w-3.5 h-3.5" />
+              Imprimir
+            </button>
+          )}
           {toastMessage.whatsappAction && (
             <button
               type="button"
               onClick={toastMessage.whatsappAction}
-              className="px-2.5 py-1 bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-[11px] font-black rounded-lg flex items-center gap-1 transition-all shrink-0"
+              className="px-2.5 py-1 bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-[11px] font-black rounded-lg flex items-center gap-1 transition-all shrink-0 cursor-pointer"
             >
               <MessageCircle className="w-3.5 h-3.5" />
               WhatsApp
@@ -1166,6 +1273,7 @@ export default function App() {
                 onOpenAbastecerPDV={(pdvId, mode) => handleOpenRestock(pdvId, mode)}
                 onEditarPDV={(pdv) => setEditingPdv(pdv)}
                 onExcluirPDV={handleDeletePDV}
+                onImprimirEstoquePDV={handleOpenPdvStockReport}
               />
             )}
 
@@ -1277,6 +1385,12 @@ export default function App() {
         onClose={() => setIsInventoryModalOpen(false)}
         produtos={produtos}
         onApplyInventory={handleApplyInventory}
+      />
+
+      <BluetoothReceiptModal
+        data={receiptToPrint}
+        initialPaperWidth={receiptPaperWidth}
+        onClose={() => setReceiptToPrint(null)}
       />
 
       {/* Footer */}
